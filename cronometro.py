@@ -106,9 +106,8 @@ class CronometroApp:
     def finalizar_cronometro(self):
         if self.running or self.paused:
             self.running = False
-            tiempo_trabajado = self.elapsed_time + \
-                (datetime.now(
-                ) - self.start_time).total_seconds() if not self.paused else self.paused_time
+            tiempo_trabajado = (
+                datetime.now() - self.start_time).total_seconds()  # Cambiado aquí
             fecha_actual = self.start_time.strftime("%Y-%m-%d")
             hora_inicio = self.start_time.strftime("%H:%M:%S")
             hora_fin = datetime.now().strftime("%H:%M:%S")

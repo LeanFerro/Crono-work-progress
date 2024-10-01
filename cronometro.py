@@ -174,7 +174,7 @@ class CronometroApp:
                 for row in self.tree.get_children():
                     writer.writerow(self.tree.item(row)["values"])
             self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]
-            self.file_label.config(text=f"Archivo actual: {self.current_file}")
+            self.file_label.config(text=f"Trabajo: {self.current_file}")
             self.tabla_modificada = False
 
     def guardar_rapido(self):
@@ -227,7 +227,7 @@ class CronometroApp:
                 for row in reader:
                     self.tree.insert("", "end", values=row)
             self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]
-            self.file_label.config(text=f"Archivo actual: {self.current_file}")
+            self.file_label.config(text=f"Trabajo: {self.current_file}")
             self.calcular_tiempo_total_desde_tabla()
 
     def mostrar_menu_contextual(self, event):

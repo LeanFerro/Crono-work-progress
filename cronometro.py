@@ -21,16 +21,22 @@ class CronometroApp:
         self.top_frame = tk.Frame(root)
         self.top_frame.pack(pady=10)
 
-        self.save_button = tk.Button(self.top_frame, text="Guardar Tabla",
-                                     command=self.guardar_tabla, font=("Helvetica", 12), padx=10, pady=5)
-        self.save_button.pack(side=tk.LEFT, padx=10)
+        self.root.protocol("WM_DELETE_WINDOW", self.cerrar_app)
 
         self.open_button = tk.Button(self.top_frame, text="Abrir Tabla",
-                                     command=self.abrir_tabla, font=("Helvetica", 12), padx=10, pady=5)
-        self.open_button.pack(side=tk.LEFT, padx=10)
+                                     command=self.abrir_tabla, font=("Helvetica", 12), padx=10, pady=5, fg="green")
+        self.open_button.pack(side=tk.LEFT, padx=8)
+
+        self.save_button = tk.Button(self.top_frame, text="Guardar Tabla",
+                                     command=self.guardar_tabla, font=("Helvetica", 12), padx=10, pady=5, fg="blue")
+        self.save_button.pack(side=tk.LEFT, padx=8)
+
+        self.quick_save_button = tk.Button(self.top_frame, text="Guardado Rápido",
+                                           command=self.guardar_rapido, font=("Helvetica", 12), padx=10, pady=5, fg="blue")
+        self.quick_save_button.pack(side=tk.LEFT, padx=8)
 
         self.file_label = tk.Label(
-            root, text=f"Archivo actual: {self.current_file}", font=("Helvetica", 14))
+            root, text=f"Trabajo: {self.current_file}", font=("Helvetica", 24), fg="blue")
         self.file_label.pack(pady=10)
 
         self.time_label = tk.Label(root, text="00:00:00", font=(
@@ -86,6 +92,8 @@ class CronometroApp:
             "Helvetica", 12), bg="red", fg="white", padx=10, pady=5)
         self.clear_button.pack(pady=20, side=tk.RIGHT, anchor="e", padx=10)
 
+        self.tabla_modificada = False
+
         self.actualizar_cronometro()
 
     def iniciar_cronometro(self):
@@ -117,6 +125,7 @@ class CronometroApp:
                 fecha_actual, hora_inicio, hora_fin, tiempo_trabajado_str, ""))
             self.total_time += timedelta(seconds=tiempo_trabajado)
             self.actualizar_tiempo_total()
+            self.tabla_modificada = True
 
             self.reiniciar_cronometro()
 
@@ -166,6 +175,33 @@ class CronometroApp:
                     writer.writerow(self.tree.item(row)["values"])
             self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]
             self.file_label.config(text=f"Archivo actual: {self.current_file}")
+            self.tabla_modificada = False
+
+    def guardar_rapido(self):
+        if self.current_file == "Sin archivo":
+            tk.messagebox.showwarning(
+                "Guardado Rápido", "No hay un archivo abierto. Usa 'Guardar Tabla' primero.")
+        else:
+            archivo = self.current_file + ".csv"
+            with open(archivo, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado", "Comentarios"])
+                for row in self.tree.get_children():
+                    writer.writerow(self.tree.item(row)["values"])
+            tk.messagebox.showinfo(
+                "Guardado Rápido", f"Los datos han sido guardados en '{archivo}'.")
+        self.tabla_modificada = False
+
+    def cerrar_app(self):
+        if self.tabla_modificada:
+            respuesta = tk.messagebox.askyesnocancel(
+                "Salir", "Hay cambios no guardados. ¿Desea guardar antes de salir?")
+            if respuesta:
+                self.guardar_tabla()
+            elif respuesta is None:
+                return
+        self.root.destroy()
 
     def agregar_comentario(self, event):
         selected_item = self.tree.selection()[0]
@@ -178,6 +214,7 @@ class CronometroApp:
             valores[4] = nuevo_comentario
 
             self.tree.item(selected_item, values=valores)
+            self.tabla_modificada = True
 
     def abrir_tabla(self):
         archivo = filedialog.askopenfilename(
@@ -186,7 +223,7 @@ class CronometroApp:
             self.borrar_tabla()
             with open(archivo, 'r') as f:
                 reader = csv.reader(f)
-                next(reader)  # Omitir la cabecera
+                next(reader)
                 for row in reader:
                     self.tree.insert("", "end", values=row)
             self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]

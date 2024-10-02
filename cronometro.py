@@ -163,6 +163,24 @@ class CronometroApp:
         self.total_label.config(
             text=f"Tiempo Total Trabajado: {self.formato_tiempo(total_segundos)}")
 
+    def abrir_tabla(self):
+        archivo = filedialog.askopenfilename(
+            defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if archivo:
+            self.borrar_tabla()
+            with open(archivo, 'r') as f:
+                reader = csv.reader(f)
+                next(reader)
+                for row in reader:
+                    self.tree.insert("", "end", values=row)
+            self.current_file = archivo  # Ruta completa
+            # Solo el nombre sin la extensión
+            self.file_label.config(
+                text=f"Trabajo: {os.path.basename(archivo).rsplit('.', 1)[0]}")
+            self.calcular_tiempo_total_desde_tabla()
+
+            self.tabla_modificada = False
+
     def guardar_tabla(self):
         archivo = filedialog.asksaveasfilename(
             defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
@@ -170,10 +188,12 @@ class CronometroApp:
             with open(archivo, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(
-                    ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado"])
+                    ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado", "Comentarios"])
                 for row in self.tree.get_children():
                     writer.writerow(self.tree.item(row)["values"])
-            self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]
+
+            # Actualiza solo el nombre del archivo sin extensión
+            self.current_file = os.path.splitext(os.path.basename(archivo))[0]
             self.file_label.config(text=f"Trabajo: {self.current_file}")
             self.tabla_modificada = False
 
@@ -182,15 +202,16 @@ class CronometroApp:
             tk.messagebox.showwarning(
                 "Guardado Rápido", "No hay un archivo abierto. Usa 'Guardar Tabla' primero.")
         else:
-            archivo = self.current_file + ".csv"
-            with open(archivo, 'w', newline='') as f:
+            with open(self.current_file, 'w', newline='') as f:  # Usa la ruta completa
                 writer = csv.writer(f)
                 writer.writerow(
                     ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado", "Comentarios"])
                 for row in self.tree.get_children():
                     writer.writerow(self.tree.item(row)["values"])
+
             tk.messagebox.showinfo(
-                "Guardado Rápido", f"Los datos han sido guardados en '{archivo}'.")
+                "Guardado Rápido", f"Los datos han sido guardados en '{os.path.basename(self.current_file)}'.")
+
         self.tabla_modificada = False
 
     def cerrar_app(self):
@@ -215,20 +236,6 @@ class CronometroApp:
 
             self.tree.item(selected_item, values=valores)
             self.tabla_modificada = True
-
-    def abrir_tabla(self):
-        archivo = filedialog.askopenfilename(
-            defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-        if archivo:
-            self.borrar_tabla()
-            with open(archivo, 'r') as f:
-                reader = csv.reader(f)
-                next(reader)
-                for row in reader:
-                    self.tree.insert("", "end", values=row)
-            self.current_file = os.path.basename(archivo).rsplit('.', 1)[0]
-            self.file_label.config(text=f"Trabajo: {self.current_file}")
-            self.calcular_tiempo_total_desde_tabla()
 
     def mostrar_menu_contextual(self, event):
         selected_item = self.tree.identify_row(event.y)

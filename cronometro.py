@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, simpledialog
 from datetime import datetime, timedelta
+from tkinter import ttk
+import calendar
 import csv
 import os
 
@@ -31,9 +33,14 @@ class CronometroApp:
                                      command=self.guardar_tabla, font=("Helvetica", 12), padx=10, pady=5, fg="blue")
         self.save_button.pack(side=tk.LEFT, padx=8)
 
-        self.quick_save_button = tk.Button(self.top_frame, text="Guardado Rápido",
-                                           command=self.guardar_rapido, font=("Helvetica", 12), padx=10, pady=5, fg="blue")
-        self.quick_save_button.pack(side=tk.LEFT, padx=8)
+        self.month_label = tk.Label(
+            root, text="Seleccionar mes:", font=("Helvetica", 14))
+        self.month_label.pack(pady=10)
+
+        self.month_combobox = ttk.Combobox(root, values=list(
+            calendar.month_name[1:]), state="readonly", font=("Helvetica", 12))
+        self.month_combobox.pack(pady=10)
+        self.month_combobox.bind("<<ComboboxSelected>>", self.filtrar_por_mes)
 
         self.file_label = tk.Label(
             root, text=f"Trabajo: {self.current_file}", font=("Helvetica", 24), fg="blue")
@@ -58,8 +65,13 @@ class CronometroApp:
         self.pause_button.pack(side=tk.LEFT, padx=10, pady=5)
 
         self.stop_button = tk.Button(self.control_frame_bottom, text="Finalizar", command=self.finalizar_cronometro, font=(
-            "Helvetica", 12), bg="red", fg="white", padx=10, pady=5)
+            "Helvetica", 12), bg="red", fg="white", padx=10)
         self.stop_button.pack(side=tk.LEFT, padx=10)
+
+        self.show_all_button = tk.Button(root, text="Mostrar Todos", command=self.mostrar_todos, font=(
+            "Helvetica", 12), padx=10, pady=5, fg="blue")
+
+        self.show_all_button.pack(pady=10)
 
         self.reset_button = tk.Button(self.control_frame_bottom, text="Reiniciar", command=self.reiniciar_cronometro, font=(
             "Helvetica", 12), bg="blue", fg="white", padx=10, pady=5)
@@ -111,11 +123,25 @@ class CronometroApp:
             self.paused = True
             self.time_label.config(fg="orange")
 
+    def guardar_rapido(self):
+        if self.current_file == "Sin archivo":
+            tk.messagebox.showwarning(
+                "Guardado Rápido", "No hay un archivo abierto. Usa 'Guardar Tabla' primero.")
+        else:
+            with open(self.current_file, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado", "Comentarios"])
+                for row in self.tree.get_children():
+                    writer.writerow(self.tree.item(row)["values"])
+
+            self.tabla_modificada = False
+
     def finalizar_cronometro(self):
         if self.running or self.paused:
             self.running = False
             tiempo_trabajado = (
-                datetime.now() - self.start_time).total_seconds()  # Cambiado aquí
+                datetime.now() - self.start_time).total_seconds()
             fecha_actual = self.start_time.strftime("%Y-%m-%d")
             hora_inicio = self.start_time.strftime("%H:%M:%S")
             hora_fin = datetime.now().strftime("%H:%M:%S")
@@ -126,6 +152,9 @@ class CronometroApp:
             self.total_time += timedelta(seconds=tiempo_trabajado)
             self.actualizar_tiempo_total()
             self.tabla_modificada = True
+
+            # Guardar automáticamente el registro
+            self.guardar_rapido()
 
             self.reiniciar_cronometro()
 
@@ -168,20 +197,22 @@ class CronometroApp:
             defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
         if archivo:
             self.borrar_tabla()
+            self.registros_originales = []  # Nueva lista para guardar todos los registros
             with open(archivo, 'r') as f:
                 reader = csv.reader(f)
-                next(reader)
+                next(reader)  # Saltar el encabezado
                 for row in reader:
+                    self.registros_originales.append(row)
                     self.tree.insert("", "end", values=row)
-            self.current_file = archivo  # Ruta completa
-            # Solo el nombre sin la extensión
+            self.current_file = archivo
             self.file_label.config(
-                text=f"Trabajo: {os.path.basename(archivo).rsplit('.', 1)[0]}")
+                text=f"Trabajo: {os.path.basename(self.current_file)}")
             self.calcular_tiempo_total_desde_tabla()
 
             self.tabla_modificada = False
 
     def guardar_tabla(self):
+
         archivo = filedialog.asksaveasfilename(
             defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
         if archivo:
@@ -192,27 +223,35 @@ class CronometroApp:
                 for row in self.tree.get_children():
                     writer.writerow(self.tree.item(row)["values"])
 
-            # Actualiza solo el nombre del archivo sin extensión
             self.current_file = os.path.splitext(os.path.basename(archivo))[0]
             self.file_label.config(text=f"Trabajo: {self.current_file}")
             self.tabla_modificada = False
 
-    def guardar_rapido(self):
-        if self.current_file == "Sin archivo":
-            tk.messagebox.showwarning(
-                "Guardado Rápido", "No hay un archivo abierto. Usa 'Guardar Tabla' primero.")
-        else:
-            with open(self.current_file, 'w', newline='') as f:  # Usa la ruta completa
-                writer = csv.writer(f)
-                writer.writerow(
-                    ["Fecha", "Hora Inicio", "Hora Fin", "Tiempo Trabajado", "Comentarios"])
-                for row in self.tree.get_children():
-                    writer.writerow(self.tree.item(row)["values"])
+    def filtrar_por_mes(self, event):
+        mes_seleccionado = self.month_combobox.get()
 
-            tk.messagebox.showinfo(
-                "Guardado Rápido", f"Los datos han sido guardados en '{os.path.basename(self.current_file)}'.")
+        if mes_seleccionado:
+            for row in self.tree.get_children():
+                self.tree.delete(row)
 
-        self.tabla_modificada = False
+            total_tiempo_mes = timedelta(0)
+
+            for row in self.registros_originales:
+                fecha = row[0]
+                mes_registro = datetime.strptime(
+                    fecha, "%Y-%m-%d").strftime("%B")
+
+                if mes_registro == mes_seleccionado:
+                    self.tree.insert("", "end", values=row)
+
+                    tiempo_trabajado_str = row[3]
+                    h, m, s = map(int, tiempo_trabajado_str.split(':'))
+                    total_tiempo_mes += timedelta(hours=h,
+                                                  minutes=m, seconds=s)
+
+        self.total_label.config(
+            text=f"Tiempo Total Trabajado en {mes_seleccionado}: {self.formato_tiempo(total_tiempo_mes.total_seconds())}"
+        )
 
     def cerrar_app(self):
         if self.tabla_modificada:
@@ -223,6 +262,11 @@ class CronometroApp:
             elif respuesta is None:
                 return
         self.root.destroy()
+
+        # Actualizar el tiempo total trabajado para el mes seleccionado
+        self.total_label.config(
+            text=f"Tiempo Total Trabajado en {mes_seleccionado}: {self.formato_tiempo(total_tiempo_mes.total_seconds())}"
+        )
 
     def agregar_comentario(self, event):
         selected_item = self.tree.selection()[0]
@@ -242,6 +286,43 @@ class CronometroApp:
         if selected_item:
             self.tree.selection_set(selected_item)
             self.menu_contextual.post(event.x_root, event.y_root)
+
+    def mostrar_todos(self):
+        # Recargar los datos del archivo actual
+        if self.current_file != "Sin archivo":
+            self.registros_originales = []
+            with open(self.current_file, 'r') as f:
+                reader = csv.reader(f)
+                next(reader)  # Saltar el encabezado
+                for row in reader:
+                    self.registros_originales.append(row)
+
+        # Limpiar la tabla para mostrar todos los registros
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+        total_tiempo = timedelta(0)
+
+        # Crear un conjunto para almacenar registros únicos
+        registros_unicos = set()
+
+        # Iterar sobre los registros originales almacenados
+        for row in self.registros_originales:
+            registro_tuple = tuple(row)
+            if registro_tuple not in registros_unicos:
+                registros_unicos.add(registro_tuple)
+                self.tree.insert("", "end", values=row)
+
+                tiempo_trabajado_str = row[3]
+                h, m, s = map(int, tiempo_trabajado_str.split(':'))
+                total_tiempo += timedelta(hours=h, minutes=m, seconds=s)
+
+        # Restablecer la selección del Combobox
+        self.month_combobox.set('')
+
+        self.total_label.config(
+            text=f"Tiempo Total Trabajado: {self.formato_tiempo(total_tiempo.total_seconds())}"
+        )
 
     def borrar_fila(self):
         selected_item = self.tree.selection()

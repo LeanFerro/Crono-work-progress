@@ -109,6 +109,7 @@ class CronometroApp:
         self.actualizar_cronometro()
 
     def iniciar_cronometro(self):
+        self.mostrar_todos()
         if not self.running:
             self.start_time = datetime.now() - timedelta(seconds=self.paused_time)
             self.running = True
@@ -262,11 +263,6 @@ class CronometroApp:
             elif respuesta is None:
                 return
         self.root.destroy()
-
-        # Actualizar el tiempo total trabajado para el mes seleccionado
-        self.total_label.config(
-            text=f"Tiempo Total Trabajado en {mes_seleccionado}: {self.formato_tiempo(total_tiempo_mes.total_seconds())}"
-        )
 
     def agregar_comentario(self, event):
         selected_item = self.tree.selection()[0]
